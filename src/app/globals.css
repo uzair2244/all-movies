@@ -215,5 +215,5 @@
 
 /* ensure mobile content clears bottom nav */
 @media (max-width: 1023px) {
-  body { padding-bottom: 64px; }
+  body { padding-bottom: 80px; }
 }

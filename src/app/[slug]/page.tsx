@@ -41,7 +41,7 @@ export default async function MoviePage({ params }: { params: Promise<{ slug: st
       <Header />
       <main>
         {/* Backdrop hero */}
-        <div className="relative w-full h-[40vh] min-h-[280px] max-h-[420px] overflow-hidden">
+        <div className="relative w-full h-[32vh] sm:h-[40vh] min-h-[220px] sm:min-h-[280px] max-h-[420px] overflow-hidden">
           <Image
             src={movie.poster}
             alt=""
@@ -52,9 +52,9 @@ export default async function MoviePage({ params }: { params: Promise<{ slug: st
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/60 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-bg)]/80 to-transparent" />
-          <div className="relative container-x h-full flex items-end pb-6">
-            <div className="flex items-end gap-5">
-              <div className="hidden sm:block relative w-32 md:w-40 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl ring-1 ring-[var(--color-border-strong)] shrink-0">
+          <div className="relative container-x h-full flex items-end pb-4 sm:pb-6">
+            <div className="flex items-end gap-3 sm:gap-5 w-full min-w-0">
+              <div className="hidden sm:block relative w-28 md:w-40 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl ring-1 ring-[var(--color-border-strong)] shrink-0">
                 <Image src={movie.poster} alt={movie.title} fill sizes="160px" className="object-cover" />
               </div>
               <div className="pb-2">
@@ -65,17 +65,17 @@ export default async function MoviePage({ params }: { params: Promise<{ slug: st
                     </Link>
                   ))}
                 </div>
-                <h1 className="font-display font-extrabold text-3xl md:text-5xl leading-[1.05] tracking-tight drop-shadow-2xl">
+                <h1 className="font-display font-extrabold text-2xl sm:text-3xl md:text-5xl leading-[1.05] tracking-tight drop-shadow-2xl break-words">
                   {movie.title}
                 </h1>
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-[var(--color-text-dim)]">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs sm:text-sm text-[var(--color-text-dim)]">
                   <span className="text-[var(--color-gold)] font-semibold">{movie.year}</span>
                   <span>•</span>
                   <span>{movie.language}</span>
                   {movie.actors.length > 0 && (
                     <>
                       <span>•</span>
-                      <span className="line-clamp-1">{movie.actors.join(", ")}</span>
+                      <span className="line-clamp-2">{movie.actors.join(", ")}</span>
                     </>
                   )}
                 </div>
@@ -84,8 +84,8 @@ export default async function MoviePage({ params }: { params: Promise<{ slug: st
           </div>
         </div>
 
-        <div className="container-x py-6">
-          <div className="grid lg:grid-cols-[1fr_280px] gap-8">
+        <div className="container-x py-6 pb-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 lg:gap-8">
             <div>
               <VideoPlayer embedUrl={movie.embedUrl} poster={movie.poster} title={movie.title} />
 

@@ -165,6 +165,7 @@ export default function VideoPlayer({
       ref={containerRef}
       className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden group shadow-2xl ring-1 ring-[var(--color-border-strong)]"
       onMouseMove={scheduleHide}
+      onTouchStart={scheduleHide}
       onMouseLeave={() => playing && setShowControls(false)}
     >
       <video

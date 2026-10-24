@@ -137,7 +137,7 @@ export default function Header() {
       )}
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-[var(--color-border)] safe-bottom">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-[100] glass border-t border-[var(--color-border)] safe-bottom" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex items-center justify-around h-16">
           {[
             { icon: Home, label: "Home", href: "/" },
