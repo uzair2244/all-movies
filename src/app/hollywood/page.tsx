@@ -27,7 +27,7 @@ interface TmdbItem {
   vote_count?: number;
 }
 
-const GENRES: { id: number; name: string }[] = [
+const MOVIE_GENRES: { id: number; name: string }[] = [
   { id: 28, name: "Action" },
   { id: 12, name: "Adventure" },
   { id: 16, name: "Animation" },
@@ -49,9 +49,28 @@ const GENRES: { id: number; name: string }[] = [
   { id: 37, name: "Western" },
 ];
 
+const TV_GENRES: { id: number; name: string }[] = [
+  { id: 10759, name: "Action & Adventure" },
+  { id: 16, name: "Animation" },
+  { id: 35, name: "Comedy" },
+  { id: 80, name: "Crime" },
+  { id: 99, name: "Documentary" },
+  { id: 18, name: "Drama" },
+  { id: 10751, name: "Family" },
+  { id: 10762, name: "Kids" },
+  { id: 9648, name: "Mystery" },
+  { id: 10763, name: "News" },
+  { id: 10764, name: "Reality" },
+  { id: 10765, name: "Sci-Fi & Fantasy" },
+  { id: 10766, name: "Soap" },
+  { id: 10767, name: "Talk" },
+  { id: 10768, name: "War & Politics" },
+  { id: 37, name: "Western" },
+];
+
 export default function HollywoodPage() {
   const [tab, setTab] = useState<"movie" | "tv" | "all">("movie");
-  const [provider, setProvider] = useState<string>("");
+  const [selectedProviders, setSelectedProviders] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<TmdbItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -59,12 +78,15 @@ export default function HollywoodPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [providerOpen, setProviderOpen] = useState(false);
+  const [genreOpen, setGenreOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
-  const [genre, setGenre] = useState<string>("");
+  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [debouncing, setDebouncing] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const genres = tab === "tv" ? TV_GENRES : MOVIE_GENRES;
 
   // Local cache of popular titles for strong prefix search
   const [localCache, setLocalCache] = useState<TmdbItem[]>([]);
@@ -110,6 +132,12 @@ export default function HollywoodPage() {
       .catch(() => setProviders([]));
   }, [tab]);
 
+  // Clear filters when tab changes (provider/genre ids differ between movie & tv)
+  useEffect(() => {
+    setSelectedProviders([]);
+    setSelectedGenres([]);
+  }, [tab]);
+
   // Debounced search
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -142,7 +170,6 @@ export default function HollywoodPage() {
 
         // Local prefix matching: boost titles starting with query
         const lower = activeSearch.toLowerCase();
-        // Also search local cache for prefix matches not in API results
         const apiIds = new Set(results.map((r: any) => r.id));
         const localMatches = localCache.filter((item) => {
           const title = (item.title || item.name || "").toLowerCase();
@@ -155,8 +182,18 @@ export default function HollywoodPage() {
           }
         }
 
-        if (genre) {
-          results = results.filter((r: any) => (r.genre_ids || []).includes(Number(genre)));
+        // Genre filter (client-side, OR)
+        if (selectedGenres.length) {
+          results = results.filter((r: any) =>
+            (r.genre_ids || []).some((g: number) => selectedGenres.includes(g))
+          );
+        }
+        // Tab filter for search results
+        if (tab !== "all") {
+          results = results.filter((r: any) => {
+            const mt = r.media_type || (r.title ? "movie" : "tv");
+            return tab === "movie" ? mt === "movie" : mt === "tv";
+          });
         }
         // Sort: prefix matches first, then by popularity
         results.sort((a: any, b: any) => {
@@ -175,8 +212,8 @@ export default function HollywoodPage() {
         const params = new URLSearchParams();
         params.set("page", String(page));
         params.set("sort", sortBy);
-        if (provider) params.set("provider", provider);
-        if (genre) params.set("genre", genre);
+        if (selectedProviders.length) params.set("provider", selectedProviders.join(","));
+        if (selectedGenres.length) params.set("genre", selectedGenres.join("|"));
         const endpoint = tab === "tv" ? "/api/hollywood/tv" : "/api/hollywood/movies";
         const res = await fetch(`${endpoint}?${params}`);
         const data = await res.json();
@@ -189,7 +226,7 @@ export default function HollywoodPage() {
     } finally {
       setLoading(false);
     }
-  }, [tab, provider, page, activeSearch, sortBy, genre, localCache]);
+  }, [tab, selectedProviders, page, activeSearch, sortBy, selectedGenres, localCache]);
 
   useEffect(() => {
     fetchContent();
@@ -197,12 +234,29 @@ export default function HollywoodPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [tab, provider, activeSearch, sortBy, genre]);
+  }, [tab, selectedProviders, activeSearch, sortBy, selectedGenres]);
 
   const clearSearch = () => {
     setSearchQuery("");
     setActiveSearch("");
   };
+
+  const toggleGenre = (id: number) => {
+    setSelectedGenres((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
+    );
+  };
+  const toggleProvider = (id: number) => {
+    setSelectedProviders((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+  const clearFilters = () => {
+    setSelectedGenres([]);
+    setSelectedProviders([]);
+  };
+
+  const hasFilters = selectedGenres.length > 0 || selectedProviders.length > 0;
 
   return (
     <>
@@ -213,7 +267,7 @@ export default function HollywoodPage() {
           <p className="text-sm text-[var(--color-text-dim)]">
             {activeSearch
               ? `${totalResults.toLocaleString()} result${totalResults !== 1 ? "s" : ""} for “${activeSearch}”`
-              : `${totalResults.toLocaleString()}+ ${tab === "tv" ? "TV shows" : tab === "movie" ? "movies" : "titles"}${provider ? " on selected provider" : ""}`}
+              : `${totalResults.toLocaleString()}+ ${tab === "tv" ? "TV shows" : tab === "movie" ? "movies" : "titles"}${hasFilters ? " (filtered)" : ""}`}
           </p>
         </div>
 
@@ -264,18 +318,6 @@ export default function HollywoodPage() {
             {!activeSearch && (
               <>
                 <select
-                  value={genre}
-                  onChange={(e) => setGenre(e.target.value)}
-                  className="field text-sm w-auto"
-                >
-                  <option value="">All genres</option>
-                  {GENRES.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-                <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="field text-sm w-auto"
@@ -286,19 +328,24 @@ export default function HollywoodPage() {
                   <option value="release_date.asc">Oldest</option>
                 </select>
                 <button
-                  onClick={() => setProviderOpen(!providerOpen)}
-                  className={`btn ${provider ? "btn-primary" : "btn-ghost"} text-sm`}
+                  onClick={() => setGenreOpen((v) => !v)}
+                  className={`btn ${selectedGenres.length ? "btn-primary" : "btn-ghost"} text-sm`}
                 >
                   <Filter size={16} />
-                  {provider
-                    ? providers.find((p) => String(p.provider_id) === provider)?.provider_name || "Provider"
-                    : "Providers"}
+                  Genres{selectedGenres.length ? ` (${selectedGenres.length})` : ""}
                 </button>
-                {provider && (
+                <button
+                  onClick={() => setProviderOpen((v) => !v)}
+                  className={`btn ${selectedProviders.length ? "btn-primary" : "btn-ghost"} text-sm`}
+                >
+                  <Filter size={16} />
+                  Providers{selectedProviders.length ? ` (${selectedProviders.length})` : ""}
+                </button>
+                {hasFilters && (
                   <button
-                    onClick={() => setProvider("")}
+                    onClick={clearFilters}
                     className="btn btn-ghost text-sm px-3"
-                    aria-label="Clear provider"
+                    aria-label="Clear filters"
                   >
                     <X size={16} />
                   </button>
@@ -307,42 +354,71 @@ export default function HollywoodPage() {
             )}
           </div>
 
+          {genreOpen && !activeSearch && (
+            <div className="card p-4 fade-in">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold text-sm">Filter by genre (multi-select)</h3>
+                <button onClick={() => setGenreOpen(false)} className="text-[var(--color-text-faint)] hover:text-[var(--color-text)]">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {genres.map((g) => {
+                  const active = selectedGenres.includes(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => toggleGenre(g.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                        active
+                          ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+                          : "bg-[var(--color-bg)] text-[var(--color-text-dim)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                      }`}
+                    >
+                      {g.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {providerOpen && !activeSearch && (
             <div className="card p-4 fade-in">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-display font-bold text-sm">Filter by provider</h3>
+                <h3 className="font-display font-bold text-sm">Filter by provider (multi-select)</h3>
                 <button onClick={() => setProviderOpen(false)} className="text-[var(--color-text-faint)] hover:text-[var(--color-text)]">
                   <X size={16} />
                 </button>
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-64 overflow-y-auto">
-                {providers.map((p) => (
-                  <button
-                    key={p.provider_id}
-                    onClick={() => {
-                      setProvider(String(p.provider_id));
-                      setProviderOpen(false);
-                    }}
-                    className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all ${
-                      String(p.provider_id) === provider
-                        ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg)]"
-                    }`}
-                  >
-                    {p.logo_path ? (
-                      <img
-                        src={`https://image.tmdb.org/t/p/w45${p.logo_path}`}
-                        alt={p.provider_name}
-                        className="w-8 h-8 rounded-md object-contain"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-md bg-[var(--color-bg-hover)]" />
-                    )}
-                    <span className="text-[9px] text-center line-clamp-2 leading-tight text-[var(--color-text-dim)]">
-                      {p.provider_name}
-                    </span>
-                  </button>
-                ))}
+                {providers.map((p) => {
+                  const active = selectedProviders.includes(p.provider_id);
+                  return (
+                    <button
+                      key={p.provider_id}
+                      onClick={() => toggleProvider(p.provider_id)}
+                      className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all ${
+                        active
+                          ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10"
+                          : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg)]"
+                      }`}
+                    >
+                      {p.logo_path ? (
+                        <img
+                          src={`https://image.tmdb.org/t/p/w45${p.logo_path}`}
+                          alt={p.provider_name}
+                          className="w-8 h-8 rounded-md object-contain"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-md bg-[var(--color-bg-hover)]" />
+                      )}
+                      <span className="text-[9px] text-center line-clamp-2 leading-tight text-[var(--color-text-dim)]">
+                        {p.provider_name}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
